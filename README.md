@@ -1,5 +1,10 @@
 
 ## Speech Recognition and Emotion Detection
+
+This project was collaboratively developed as part of our Final Year B.Tech Project.
+Original development done along with:
+Saurav Kumar Singh – https://github.com/SauravB210489CS/emotion-app
+
 This project is a real-time **Vocal Emotion Detection Application** built using deep learning.  
 It analyzes **Speech/Audio Input** and predicts the underlying human emotion using a Convolutional Neural Network (CNN).
 
