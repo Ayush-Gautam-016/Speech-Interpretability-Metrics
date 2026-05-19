@@ -6,6 +6,7 @@
 
 > A deep learning system that detects human emotions from speech audio using a CNN-LSTM model, with LMAC (Local Model-Agnostic Contributions) interpretability to explain **which part of the audio** triggered the prediction.
 
+
 ---
 
 ## 🚀 Live Demo
@@ -16,6 +17,11 @@ Upload any `.wav` or `.mp3` speech file and instantly see:
 - The predicted emotion with confidence scores
 - A log-mel spectrogram of your audio
 - A LMAC importance graph showing exactly which moment triggered the emotion
+
+---
+## Project Demo
+
+🎥 Watch the 2-minute demo video: (https://youtu.be/iOBKFSURHug))
 
 ---
 
