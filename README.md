@@ -10,7 +10,7 @@
 
 ## 🚀 Live Demo
 
-👉 **[Try it here → YOUR-APP-NAME.streamlit.app](https://speech-interpretability-metrics.streamlit.app/)**
+👉 **[Try it here → (https://speech-interpretability-metrics.streamlit.app/)**
 
 Upload any `.wav` or `.mp3` speech file and instantly see:
 - The predicted emotion with confidence scores
