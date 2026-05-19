@@ -1,5 +1,4 @@
 import streamlit as st
-import sounddevice as sd
 import numpy as np
 import librosa
 import librosa.display
@@ -7,12 +6,19 @@ import matplotlib.pyplot as plt
 import torch
 import joblib
 import os
-from scipy.io.wavfile import write
 import sys
+from scipy.io.wavfile import write
+
+# --- Try to import sounddevice (only works locally, not on Streamlit Cloud) ---
+try:
+    import sounddevice as sd
+    MICROPHONE_AVAILABLE = True
+except OSError:
+    MICROPHONE_AVAILABLE = False
 
 # --- Path fix: works from any location ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_DIR = os.path.join(BASE_DIR, "..")  # assumes app.py is in script/ or same level
+REPO_DIR = os.path.join(BASE_DIR, "..")
 MODEL_PATH = os.path.join(REPO_DIR, "model", "best_emotion_model.pt")
 ENCODER_PATH = os.path.join(REPO_DIR, "model", "label_encoder.pkl")
 WAV_PATH = os.path.join(BASE_DIR, "live_input.wav")
@@ -20,7 +26,6 @@ SAMPLE_RATE = 16000
 DURATION = 3
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Add script folder to path for model import
 sys.path.insert(0, os.path.join(REPO_DIR, "script"))
 from model_cnn_lstm import CNNLSTMEmotionModel
 
@@ -64,13 +69,6 @@ def lmac_importance(y, baseline_prob):
         importance.append(diff)
     return np.array(importance)
 
-# --- Streamlit UI ---
-st.set_page_config(page_title="Emotion Detector", page_icon="🎤")
-st.title("🎤 Real-Time Speech Emotion Detection")
-st.caption("CNN-LSTM Model | LMAC Interpretability")
-
-tab1, tab2 = st.tabs(["🎙️ Record Audio", "📁 Upload Audio"])
-
 def process_audio(y):
     if len(y) < SAMPLE_RATE * DURATION:
         y = np.pad(y, (0, SAMPLE_RATE * DURATION - len(y)))
@@ -78,19 +76,18 @@ def process_audio(y):
         y = y[:SAMPLE_RATE * DURATION]
     pred, prob = predict_emotion(y)
 
-    # Emotion result with emoji
-    emotion_emoji = {"anger": "😡", "disgust": "🤢", "fear": "😨",
-                     "happy": "😊", "neutral": "😐", "sad": "😢",
-                     "sarcastic": "😏", "surprise": "😲"}
+    emotion_emoji = {
+        "anger": "😡", "disgust": "🤢", "fear": "😨",
+        "happy": "😊", "neutral": "😐", "sad": "😢",
+        "sarcastic": "😏", "surprise": "😲"
+    }
     emoji = emotion_emoji.get(pred, "🎭")
     st.success(f"### {emoji} Predicted Emotion: **{pred.upper()}**")
 
-    # Probability bar chart
     st.subheader("📊 Confidence Scores")
     prob_dict = {cls: float(p) for cls, p in zip(label_encoder.classes_, prob)}
     st.bar_chart(prob_dict)
 
-    # Spectrogram
     st.subheader("🌈 Log-Mel Spectrogram")
     mel = librosa.feature.melspectrogram(y=y, sr=SAMPLE_RATE, n_mels=64)
     log_mel = librosa.power_to_db(mel, ref=np.max)
@@ -100,7 +97,6 @@ def process_audio(y):
     st.pyplot(fig)
     plt.close()
 
-    # LMAC
     st.subheader("🔍 LMAC: Which part of audio triggered the emotion?")
     with st.spinner("Computing LMAC importance..."):
         importance = lmac_importance(y, prob)
@@ -114,18 +110,33 @@ def process_audio(y):
     st.pyplot(fig2)
     plt.close()
 
+# --- UI ---
+st.set_page_config(page_title="Speech Emotion Detector", page_icon="🎤")
+st.title("🎤 Real-Time Speech Emotion Detection")
+st.caption("CNN-LSTM Model | LMAC Interpretability")
+
+tab1, tab2 = st.tabs(["🎙️ Record Audio", "📁 Upload Audio"])
+
 with tab1:
-    if st.button("🎙️ Record 3 Seconds & Predict"):
-        with st.spinner("Recording..."):
-            recording = sd.rec(int(SAMPLE_RATE * DURATION), samplerate=SAMPLE_RATE, channels=1, dtype='int16')
-            sd.wait()
-            write(WAV_PATH, SAMPLE_RATE, recording)
-        st.audio(WAV_PATH, format='audio/wav')
-        y, _ = librosa.load(WAV_PATH, sr=SAMPLE_RATE)
-        process_audio(y)
+    if not MICROPHONE_AVAILABLE:
+        st.info(
+            "🌐 **Running on Streamlit Cloud** — microphone recording is not available here.\n\n"
+            "👉 Use the **Upload Audio** tab to analyse a .wav or .mp3 file.\n\n"
+            "To use live recording, run the app locally with `streamlit run script/app.py`."
+        )
+    else:
+        if st.button("🎙️ Record 3 Seconds & Predict"):
+            with st.spinner("Recording..."):
+                recording = sd.rec(int(SAMPLE_RATE * DURATION), samplerate=SAMPLE_RATE, channels=1, dtype='int16')
+                sd.wait()
+                write(WAV_PATH, SAMPLE_RATE, recording)
+            st.audio(WAV_PATH, format='audio/wav')
+            y, _ = librosa.load(WAV_PATH, sr=SAMPLE_RATE)
+            process_audio(y)
 
 with tab2:
-    uploaded = st.file_uploader("Upload a .wav or .mp3 file", type=["wav", "mp3"])
+    st.write("Upload a speech audio file to detect the emotion.")
+    uploaded = st.file_uploader("Choose a .wav or .mp3 file", type=["wav", "mp3"])
     if uploaded:
         tmp_path = os.path.join(BASE_DIR, "uploaded_audio.wav")
         with open(tmp_path, "wb") as f:
